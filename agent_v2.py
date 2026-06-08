@@ -7,7 +7,7 @@ agent_v2.py — RAG 检索增强 Agent
 
 v1 → v2 升级点：
 - 新增 search_knowledge_base 工具
-- TF-IDF 关键词匹配 → Sentence-Transformers 语义向量检索
+- Sentence-Transformers 语义向量检索
 - 工具注册从手动列表 → ToolRegistry 一行注册
 """
 import os

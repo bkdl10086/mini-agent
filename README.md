@@ -55,7 +55,7 @@ v1 → v2 的升级链路：引入 search_knowledge_base 工具 → TF-IDF 替�
 - **RAG 检索增强**：Sentence-Transformers 语义向量 + 余弦相似度，精准匹配语义而非关键词
 - **Chunking 分块**：200 字符/块，30 字符重叠，避免截断关键信息
 - **多轮对话**：完整维护 `messages` 列表，工具调用结果正确回传
-- **工具扩展**：统一 `tools` + `execute_function` 架构，新增工具只需 3 步
+- **工具注册机制**：`ToolRegistry` 一行注册新工具，自动生成 OpenAI Schema、调度执行、上下文透传
 
 ## 📁 项目结构
 
