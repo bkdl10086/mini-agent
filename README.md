@@ -61,18 +61,18 @@ Mini Agent 是一个从零搭建的 AI Agent 学习项目，包含两个版本�
 
 ```
 mini-agent/
-├── README.md                   # 项目文档（你在这里）
-├── requirements.txt            # Python 依赖
-├── .env.example                # API Key 模板（复制为 .env）
-├── .gitignore                  # Git 忽略规则
-├── mini_agent.py               # 基础版 Agent（快递 + 备忘录）
-├── rag_agent.py                # RAG 升级版（知识库检索 + 快递 + 备忘录）
-├── kb/                         # 知识库文档目录
-│   ├── ai_concepts.md          # AI 大模型核心概念
-│   ├── python_basics.md        # Python 基础知识
-│   └── national_grid_exam.md   # 国家电网考试内容
-└── memo/                       # 备忘录存储目录（运行时生成）
-    └── .gitkeep
+├── README.md
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── common.py               # 共享模块：配置、快递鸟、备忘录、ReAct 循环
+├── mini_agent.py           # 基础版 Agent（快递 + 备忘录，~90 行）
+├── rag_agent.py            # RAG 版 Agent（知识库 + 快递 + 备忘录，~200 行）
+├── kb/                     # 知识库文档
+│   ├── ai_concepts.md
+│   ├── python_basics.md
+│   └── national_grid_exam.md
+└── memo/                   # 备忘录存储（运行时）
 ```
 
 ## 🚀 快速开始
