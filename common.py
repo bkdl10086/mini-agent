@@ -5,8 +5,10 @@ common.py — Mini Agent 共享模块
 - 配置加载（DeepSeek + 快递鸟）
 - 快递查询（快递鸟 API）
 - 备忘录 CRUD
+- 工具注册器（ToolRegistry）
 - ReAct 循环引擎
 """
+
 import os
 import json
 import hashlib
@@ -20,6 +22,38 @@ from openai import OpenAI
 BASE_DIR = Path(__file__).parent
 MEMO_DIR = BASE_DIR / "memo"
 os.makedirs(MEMO_DIR, exist_ok=True)
+
+
+# ========== 工具注册器 ==========
+
+class ToolRegistry:
+    """工具注册中心：注册 → 生成 Schema → 调度执行"""
+    def __init__(self):
+        self._tools = {}
+
+    def register(self, name: str, fn, schema: dict, description: str):
+        """注册一个工具。schema 为 OpenAI parameters 格式（不含 type/function 外层）"""
+        self._tools[name] = {"fn": fn, "schema": schema, "description": description}
+
+    def get_schemas(self) -> list:
+        """生成 OpenAI tools 格式"""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": info["description"],
+                    "parameters": info["schema"],
+                }
+            }
+            for name, info in self._tools.items()
+        ]
+
+    def execute(self, name: str, arguments: dict, **ctx) -> str:
+        """执行工具，自动匹配注册的函数并透传上下文"""
+        if name not in self._tools:
+            return f"未知工具: {name}"
+        return self._tools[name]["fn"](arguments, **ctx)
 
 # ========== 配置 ==========
 
@@ -124,8 +158,7 @@ def memo_operate(operate: str, name: str, content: str) -> str:
 
 def run_agent(
     client: OpenAI,
-    tools: list,
-    execute_fn,
+    registry: ToolRegistry,
     system_prompt: str,
     model: str = "deepseek-v4-flash",
     banner: str = "Agent 已启动",
@@ -149,7 +182,8 @@ def run_agent(
         messages.append({"role": "user", "content": user_input})
 
         response = client.chat.completions.create(
-            model=model, messages=messages, tools=tools,
+            model=model, messages=messages,
+            tools=registry.get_schemas(),
             tool_choice="auto", stream=False,
         )
         ai_msg = response.choices[0].message
@@ -159,10 +193,8 @@ def run_agent(
                 "role": "assistant",
                 "content": ai_msg.content,
                 "tool_calls": [
-                    {
-                        "id": tc.id, "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments}
-                    }
+                    {"id": tc.id, "type": "function",
+                     "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
                     for tc in ai_msg.tool_calls
                 ]
             })
@@ -172,7 +204,7 @@ def run_agent(
                 args = json.loads(tc.function.arguments)
 
                 print(f"\n🔧 调用: {func_name}({json.dumps(args, ensure_ascii=False)})")
-                result = execute_fn(func_name, args, **ctx)
+                result = registry.execute(func_name, args, **ctx)
                 preview = result[:120] + "..." if len(result) > 120 else result
                 print(f"📋 返回: {preview}")
 
@@ -194,7 +226,7 @@ def run_agent(
             print(f"\n🤖 Agent：{ai_msg.content}")
 
 
-def main(tools, execute_fn, system_prompt, banner, **ctx):
+def main(registry: ToolRegistry, system_prompt: str, banner: str, **ctx):
     api_key, base_url = load_config()
     client = OpenAI(api_key=api_key, base_url=base_url)
-    run_agent(client, tools, execute_fn, system_prompt, banner, **ctx)
+    run_agent(client, registry, system_prompt, banner, **ctx)
