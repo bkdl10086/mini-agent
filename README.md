@@ -43,7 +43,7 @@ Mini Agent 是一个从零搭建的 AI Agent 学习项目，包含两个版本�
 ### RAG 检索流程
 
 ```
-用户问题 → jieba 中文分词 → TF-IDF 向量化 → 余弦相似度计算
+用户问题 → Sentence-Transformers 语义向量化 → 余弦相似度计算
     → Top-K 文档块 → 拼入 Prompt → LLM 生成回答（Grounded）
 ```
 
@@ -52,7 +52,7 @@ Mini Agent 是一个从零搭建的 AI Agent 学习项目，包含两个版本�
 - **ReAct 框架**：Reasoning（推理）→ Acting（工具调用）→ Observation（观察结果）循环
 - **Function Calling**：LLM 自主决定何时调用哪个工具、传什么参数
 - **流式输出**：第二轮对话使用 `stream=True`，打字机效果实时输出
-- **RAG 检索增强**：TF-IDF + jieba 中文分词 + 余弦相似度，本地知识库检索
+- **RAG 检索增强**：Sentence-Transformers 语义向量 + 余弦相似度，精准匹配语义而非关键词
 - **Chunking 分块**：200 字符/块，30 字符重叠，避免截断关键信息
 - **多轮对话**：完整维护 `messages` 列表，工具调用结果正确回传
 - **工具扩展**：统一 `tools` + `execute_function` 架构，新增工具只需 3 步
@@ -152,9 +152,8 @@ python rag_agent.py
 |------|------|
 | **DeepSeek API** | 大语言模型推理（兼容 OpenAI SDK） |
 | **openai SDK** | API 调用客户端 |
-| **scikit-learn** | TF-IDF 向量化 + 余弦相似度计算 |
-| **jieba** | 中文分词（弥补 TF-IDF 英文默认正则在中文上的不足） |
-| **numpy** | 相似度排序（argsort） |
+| **sentence-transformers** | 语义 Embedding（paraphrase-multilingual-MiniLM-L12-v2） |
+| **numpy** | 向量计算与相似度排序 |
 | **python-dotenv** | 环境变量管理 |
 
 ## 📚 学到的核心概念
@@ -180,10 +179,10 @@ Python 基础 → HTTP/API 调用 → openai SDK → 流式输出
 
 ## 🔜 后续计划
 
-- [ ] 用 `sentence-transformers` 替换 TF-IDF，提升检索质量
 - [ ] 接入更多工具（天气、新闻、日历）
 - [ ] 部署本地开源模型（Ollama + Qwen）
 - [ ] FastAPI Web 界面
+- [ ] 知识库增量更新（新增文档自动索引）
 
 ## 📄 License
 

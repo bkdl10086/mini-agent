@@ -4,9 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 import numpy as np
-import jieba
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
 
 BASE_DIR = Path(__file__).parent
 KB_DIR = BASE_DIR / "kb"
@@ -17,6 +15,7 @@ os.makedirs(MEMO_DIR, exist_ok=True)
 CHUNK_SIZE = 200
 CHUNK_OVERLAP = 30
 TOP_K = 3
+EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 
 
 def load_config():
@@ -60,28 +59,26 @@ def build_index(chunks: list):
         print("⚠️ 知识库为空，请先在 kb/ 目录放入文档")
         return None, None
 
-    vectorizer = TfidfVectorizer(
-        tokenizer=jieba.lcut,
-        max_features=1000,
-    )
-    vectors = vectorizer.fit_transform(chunks)
-    print(f"🔢 向量维度：{vectors.shape[1]}")
-    return vectorizer, vectors
+    print(f"🔧 加载 Embedding 模型: {EMBEDDING_MODEL}（首次运行会自动下载，约 120MB）")
+    model = SentenceTransformer(EMBEDDING_MODEL)
+    vectors = model.encode(chunks, normalize_embeddings=True)
+    print(f"🔢 向量维度：{vectors.shape[1]}，文档块数：{len(chunks)}")
+    return model, vectors
 
 
-def search_knowledge_base(query: str, vectorizer, vectors, chunks: list,
+def search_knowledge_base(query: str, model, vectors, chunks: list,
                           sources: list, top_k: int = TOP_K) -> str:
-    if not chunks or vectorizer is None:
+    if not chunks or model is None:
         return "知识库为空，请先在 kb/ 目录放入 .md 或 .txt 文档。"
 
-    query_vec = vectorizer.transform([query])
-    similarities = cosine_similarity(query_vec, vectors).flatten()
+    query_vec = model.encode([query], normalize_embeddings=True)
+    similarities = np.dot(vectors, query_vec.T).flatten()
     top_indices = np.argsort(similarities)[::-1][:top_k]
 
     results = []
     for idx in top_indices:
         score = float(similarities[idx])
-        if score < 0.01:
+        if score < 0.3:
             continue
         results.append(
             f"【来源：{sources[idx]}，相关度：{score:.3f}】\n{chunks[idx][:500]}"
@@ -155,12 +152,12 @@ tools = [
 
 
 def execute_function(func_name: str, arguments: dict,
-                     vectorizer=None, vectors=None, chunks=None, sources=None) -> str:
+                     model=None, vectors=None, chunks=None, sources=None) -> str:
     if func_name == "search_knowledge_base":
         query = arguments.get("query", "")
         if not query:
             return "请提供搜索关键词"
-        return search_knowledge_base(query, vectorizer, vectors, chunks, sources)
+        return search_knowledge_base(query, model, vectors, chunks, sources)
 
     elif func_name == "get_express":
         ex_number = arguments.get("ex_number", "未知")
@@ -208,9 +205,9 @@ def execute_function(func_name: str, arguments: dict,
     return f"未知函数: {func_name}"
 
 
-def run_agent(client: OpenAI, model: str = "deepseek-v4-flash"):
+def run_agent(client: OpenAI, model_name: str = "deepseek-v4-flash"):
     chunks, sources = load_and_chunk_documents(KB_DIR)
-    vectorizer, vectors = build_index(chunks)
+    embed_model, vectors = build_index(chunks)
 
     messages = [
         {
@@ -227,7 +224,7 @@ def run_agent(client: OpenAI, model: str = "deepseek-v4-flash"):
     ]
 
     print("=" * 55)
-    print("🦞 RAG Agent 已启动（ReAct 模式）")
+    print("🦞 RAG Agent 已启动（ReAct + Embedding 模式）")
     print(f"   知识库：{len(set(sources)) if sources else 0} 个文件，{len(chunks)} 个文档块")
     print("   工具：search_knowledge_base | get_express | memo")
     print("   输入 quit 退出")
@@ -244,7 +241,7 @@ def run_agent(client: OpenAI, model: str = "deepseek-v4-flash"):
         messages.append({"role": "user", "content": user_input})
 
         response = client.chat.completions.create(
-            model=model,
+            model=model_name,
             messages=messages,
             tools=tools,
             tool_choice="auto",
@@ -275,7 +272,7 @@ def run_agent(client: OpenAI, model: str = "deepseek-v4-flash"):
 
                 print(f"\n🔧 调用: {func_name}({json.dumps(args, ensure_ascii=False)})")
                 result = execute_function(func_name, args,
-                                          vectorizer, vectors, chunks, sources)
+                                          embed_model, vectors, chunks, sources)
                 preview = result[:120] + "..." if len(result) > 120 else result
                 print(f"📋 返回: {preview}")
 
@@ -287,7 +284,7 @@ def run_agent(client: OpenAI, model: str = "deepseek-v4-flash"):
 
             print("\n🤖 Agent：", end="", flush=True)
             final = client.chat.completions.create(
-                model=model,
+                model=model_name,
                 messages=messages,
                 stream=True
             )
