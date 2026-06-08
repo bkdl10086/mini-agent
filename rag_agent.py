@@ -38,28 +38,27 @@ def query_express(shipper_code: str, logistic_code: str) -> str | None:
         return None
 
     request_data = json.dumps({
+        "OrderCode": "",
         "ShipperCode": shipper_code,
         "LogisticCode": logistic_code,
-    }, separators=(',', ':'))
+    })
 
-    sign_raw = request_data + app_key
-    sign_md5 = hashlib.md5(sign_raw.encode()).digest()
+    sign_md5 = hashlib.md5((request_data + app_key).encode()).digest()
     sign_b64 = base64.b64encode(sign_md5).decode()
-    sign_encoded = urllib.parse.quote_plus(sign_b64)
 
-    params = urllib.parse.urlencode({
+    post_data = urllib.parse.urlencode({
         "RequestData": request_data,
         "EBusinessID": ebusiness_id,
-        "RequestType": "1002",
-        "DataSign": sign_encoded,
+        "RequestType": "8002",
+        "DataSign": sign_b64,
         "DataType": "2",
     }).encode()
 
     try:
         req = urllib.request.Request(
             "https://api.kdniao.com/Ebusiness/EbusinessOrderHandle.aspx",
-            data=params,
-            headers={"Content-Type": "application/x-www-form-urlencoded"}
+            data=post_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded;charset=utf-8"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read().decode())
