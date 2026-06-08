@@ -48,7 +48,7 @@ def query_express(shipper_code: str, logistic_code: str) -> str:
 
     try:
         req = urllib.request.Request(
-            "https://api.kdniao.com/Ebusiness/EbusinessOrderHandle.aspx",
+            "https://api.kdniao.com/api/dist",
             data=post_data,
             headers={"Content-Type": "application/x-www-form-urlencoded;charset=utf-8"}
         )
