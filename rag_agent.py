@@ -1,5 +1,9 @@
 import os
 import json
+import hashlib
+import base64
+import urllib.request
+import urllib.parse
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -25,6 +29,73 @@ def load_config():
     if not api_key:
         raise RuntimeError("未找到 DEEPSEEK_API_KEY，请复制 .env.example 为 .env 并填入密钥")
     return api_key, base_url
+
+
+def query_express(shipper_code: str, logistic_code: str) -> str | None:
+    ebusiness_id = os.getenv("KDNIAO_EBUSINESS_ID")
+    app_key = os.getenv("KDNIAO_APP_KEY")
+    if not ebusiness_id or not app_key:
+        return None
+
+    request_data = json.dumps({
+        "ShipperCode": shipper_code,
+        "LogisticCode": logistic_code,
+    }, separators=(',', ':'))
+
+    sign_raw = request_data + app_key
+    sign_md5 = hashlib.md5(sign_raw.encode()).digest()
+    sign_b64 = base64.b64encode(sign_md5).decode()
+    sign_encoded = urllib.parse.quote_plus(sign_b64)
+
+    params = urllib.parse.urlencode({
+        "RequestData": request_data,
+        "EBusinessID": ebusiness_id,
+        "RequestType": "1002",
+        "DataSign": sign_encoded,
+        "DataType": "2",
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            "https://api.kdniao.com/Ebusiness/EbusinessOrderHandle.aspx",
+            data=params,
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode())
+
+        if not result.get("Success"):
+            return f"快递查询失败：{result.get('Reason', '未知错误')}"
+
+        state_map = {"0": "暂无轨迹", "1": "已揽收", "2": "在途中", "3": "已签收", "4": "问题件"}
+        state = state_map.get(result.get("State", ""), "未知")
+        traces = result.get("Traces", [])
+        if traces:
+            latest = traces[-1]
+            return f"【{shipper_code}】{logistic_code} {state} — {latest['AcceptTime']} {latest['AcceptStation']}"
+        return f"【{shipper_code}】{logistic_code} {state}"
+
+    except Exception as e:
+        return f"快递查询异常：{e}"
+
+
+def guess_shipper(code: str) -> str:
+    code = code.upper().strip()
+    prefixes = [
+        ("SF", "顺丰"), ("JT", "极兔"), ("JD", "京东"),
+        ("YT", "圆通"), ("YD", "韵达"), ("STO", "申通"),
+        ("ZTO", "中通"), ("DB", "德邦"), ("EMS", "邮政"),
+    ]
+    for prefix, _ in prefixes:
+        if code.startswith(prefix):
+            return prefix
+    digits = code.replace("-", "").replace(" ", "")
+    if digits.isdigit():
+        if digits.startswith("7"): return "ZTO"
+        if digits.startswith("3"): return "YD"
+        if digits.startswith("4"): return "STO"
+        if digits.startswith("9"): return "JTSD"
+    return ""
 
 
 def load_and_chunk_documents(kb_dir: Path):
@@ -109,13 +180,17 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_express",
-            "description": "查询快递单号的物流状态",
+            "description": "查询快递单号的物流状态。如果用户没给快递公司，从单号规则推断（SF开头=顺丰，JT开头=极兔，YT开头=圆通，7开头=中通，3开头=韵达，4开头=申通）。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ex_number": {
                         "type": "string",
-                        "description": "快递单号，如 ABB-566、CGS-455"
+                        "description": "快递单号，如 SF12345678、YT987654321"
+                    },
+                    "shipper_code": {
+                        "type": "string",
+                        "description": "快递公司编码，如 SF=顺丰、ZTO=中通、YTO=圆通、YD=韵达、STO=申通、JTSD=极兔。可留空"
                     }
                 },
                 "required": ["ex_number"]
@@ -161,12 +236,23 @@ def execute_function(func_name: str, arguments: dict,
 
     elif func_name == "get_express":
         ex_number = arguments.get("ex_number", "未知")
+        shipper_code = arguments.get("shipper_code", "") or guess_shipper(ex_number)
+
+        if not shipper_code:
+            return f"无法识别 {ex_number} 的快递公司，请提供快递公司编码（如 SF、ZTO、YTO）"
+
+        result = query_express(shipper_code, ex_number)
+        if result:
+            return result
+
         mock_data = {
             "ABB-566": "正在咸阳中转仓，准备发出",
             "CGS-455": "已从成都发出",
             "BBB-111": "已到达喀什物流配送中心，正在配送",
         }
-        return mock_data.get(ex_number, f"暂无 {ex_number} 的物流数据")
+        if ex_number in mock_data:
+            return mock_data[ex_number]
+        return f"暂无 {ex_number} 的物流数据（未配置快递鸟 API Key）"
 
     elif func_name == "memo":
         opt = arguments.get("operate")

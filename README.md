@@ -155,6 +155,7 @@ python rag_agent.py
 | **sentence-transformers** | 语义 Embedding（paraphrase-multilingual-MiniLM-L12-v2） |
 | **numpy** | 向量计算与相似度排序 |
 | **python-dotenv** | 环境变量管理 |
+| **快递鸟 API** | 真实物流轨迹查询（可选，未配置时降级为模拟数据） |
 
 ## 📊 项目业绩
 
