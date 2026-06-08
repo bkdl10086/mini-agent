@@ -8,14 +8,14 @@
 
 ## 📖 项目简介
 
-Mini Agent 是一个从零搭建的 AI Agent 学习项目，包含两个版本：
+Mini Agent 是一个从零搭建的 AI Agent 学习项目，按版本迭代演进：
 
 | 版本 | 文件 | 工具数 | 核心能力 |
 |------|------|--------|----------|
-| **基础版** | `mini_agent.py` | 2 | 快递查询 + 备忘录管理 |
-| **RAG 升级版** | `rag_agent.py` | 3 | 知识库检索 + 快递查询 + 备忘录管理 |
+| **v1** | `agent_v1.py` | 2 | 快递查询 + 备忘录管理 |
+| **v2** | `agent_v2.py` | 3 | 知识库检索 + 快递查询 + 备忘录管理 |
 
-从一行代码都没有的空文件开始，逐步实现 Function Calling、ReAct 循环、RAG 检索增强生成，完整理解 Agent 的底层原理。
+v1 → v2 的升级链路：引入 search_knowledge_base 工具 → TF-IDF 替换为 Sentence-Transformers 语义向量 → jieba 分词替换为模型原生多语言。
 
 ## 🏗️ 架构设计
 
@@ -65,9 +65,9 @@ mini-agent/
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
-├── common.py               # 共享模块：配置、快递鸟、备忘录、ReAct 循环
-├── mini_agent.py           # 基础版 Agent（快递 + 备忘录，~90 行）
-├── rag_agent.py            # RAG 版 Agent（知识库 + 快递 + 备忘录，~200 行）
+├── common.py               # 共享模块：配置、快递鸟、备忘录、ReAct 引擎
+├── agent_v1.py             # v1：快递 + 备忘录（~90 行）
+├── agent_v2.py             # v2：RAG 知识库 + 快递 + 备忘录（~200 行）
 ├── kb/                     # 知识库文档
 │   ├── ai_concepts.md
 │   ├── python_basics.md
@@ -98,11 +98,11 @@ cp .env.example .env
 ### 4. 运行
 
 ```bash
-# 基础版（快递 + 备忘录）
-python mini_agent.py
+# v1（快递 + 备忘录）
+python agent_v1.py
 
-# RAG 升级版（知识库检索 + 快递 + 备忘录）
-python rag_agent.py
+# v2（知识库检索 + 快递 + 备忘录）
+python agent_v2.py
 ```
 
 ## 💬 交互示例

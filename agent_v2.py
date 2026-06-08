@@ -1,9 +1,14 @@
 """
-rag_agent.py — RAG 检索增强 Agent
+agent_v2.py — RAG 检索增强 Agent
 =================================
 工具：知识库检索 + 快递查询 + 备忘录管理
 检索：Sentence-Transformers 语义向量 + 余弦相似度
 模型：DeepSeek API
+
+v1 → v2 升级点：
+- 新增 search_knowledge_base 工具
+- TF-IDF 关键词匹配 → Sentence-Transformers 语义向量检索
+- jieba 分词 → 模型原生多语言支持
 """
 import os
 import json
