@@ -1,4 +1,4 @@
-# 🦞 Mini Agent
+# 🤖 Mini Agent
 
 > 从零搭建的 ReAct 框架 AI Agent，支持工具调用和知识库检索增强生成（RAG）
 
@@ -155,6 +155,27 @@ python rag_agent.py
 | **sentence-transformers** | 语义 Embedding（paraphrase-multilingual-MiniLM-L12-v2） |
 | **numpy** | 向量计算与相似度排序 |
 | **python-dotenv** | 环境变量管理 |
+
+## 📊 项目业绩
+
+### 项目收益
+- 实现了一个可运行的 AI Agent 系统，支持自然语言驱动的工具调用和知识库检索
+- 知识库检索从 TF-IDF 关键词匹配升级为 Sentence-Transformers 语义向量检索，检索准确率显著提升
+- 支持流式输出，用户体验接近 ChatGPT 的打字机效果
+- 模块化设计，新增工具只需在 `tools` 列表和 `execute_function` 中各加一段，扩展成本极低
+
+### 我的贡献
+- 从零独立完成全部代码，未使用任何 Agent 框架（LangChain/AutoGPT 等）
+- 独立实现 ReAct 循环：LLM 推理 → 工具调用 → 结果回传 → 流式总结
+- 独立实现 RAG 检索链路：文档分块 → 语义向量化 → 余弦相似度 → Top-K 召回
+- 完成项目文档、架构图、交互示例、部署说明
+
+### 我的收获
+- 深入理解了大模型 Function Calling 的底层机制（JSON Schema 定义 → tool_calls 解析 → 结果回填）
+- 掌握了 RAG 的完整技术链路（Embedding / Chunking / Vector Search / Grounding）
+- 积累了从零搭建项目的经验：结构设计 → 编码实现 → 重构优化 → 文档输出
+
+---
 
 ## 📚 学到的核心概念
 

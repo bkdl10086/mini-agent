@@ -224,7 +224,7 @@ def run_agent(client: OpenAI, model_name: str = "deepseek-v4-flash"):
     ]
 
     print("=" * 55)
-    print("🦞 RAG Agent 已启动（ReAct + Embedding 模式）")
+    print("🤖 RAG Agent 已启动（ReAct + Embedding 模式）")
     print(f"   知识库：{len(set(sources)) if sources else 0} 个文件，{len(chunks)} 个文档块")
     print("   工具：search_knowledge_base | get_express | memo")
     print("   输入 quit 退出")
