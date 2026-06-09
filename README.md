@@ -12,7 +12,7 @@ Mini Agent 是一个从零搭建的 AI Agent 学习项目，按版本迭代演�
 
 | 版本 | 文件 | 工具数 | 核心能力 |
 |------|------|--------|----------|
-| **v1** | `agent_v1.py` | 2 | 快递查询 + 备忘录管理 |
+| **v1** | `agent_v1.py` | 3 | 快递查询 + 备忘录管理 + 天气查询 |
 | **v2** | `agent_v2.py` | 3 | 知识库检索 + 快递查询 + 备忘录管理 |
 
 v1 → v2 的升级链路：引入 search_knowledge_base 工具 → TF-IDF 替换为 Sentence-Transformers 语义向量 → jieba 分词替换为模型原生多语言。
@@ -65,14 +65,18 @@ mini-agent/
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
-├── common.py               # 共享模块：配置、快递鸟、备忘录、ReAct 引擎
-├── agent_v1.py             # v1：快递 + 备忘录（~90 行）
+├── common.py               # 共享模块：配置、LLM客户端工厂、快递鸟、备忘录、ReAct引擎
+├── agent_v1.py             # v1：快递 + 备忘录 + 天气（~100 行）
 ├── agent_v2.py             # v2：RAG 知识库 + 快递 + 备忘录（~200 行）
 ├── kb/                     # 知识库文档
 │   ├── ai_concepts.md
 │   ├── python_basics.md
 │   └── national_grid_exam.md
-└── memo/                   # 备忘录存储（运行时）
+├── memo/                   # 备忘录存储（运行时）
+└── eval/                   # 评估体系
+    ├── test_cases.json     # 25 条测试用例
+    ├── run_eval.py         # 测试集跑分（工具调用匹配）
+    └── judge.py            # LLM-as-Judge 质量评估
 ```
 
 ## 🚀 快速开始
@@ -145,6 +149,58 @@ python agent_v2.py
 - set（集合）：无序去重 {1, 2, 3}
 ——数据来源：kb/python_basics.md
 ```
+
+## 🧪 评估体系
+
+双层 eval：**测试集做功能回归** + **LLM-as-Judge 做质量评估**。
+
+### 跑分
+
+```bash
+# 1. 测试集（验证工具调用是否正确）
+python eval/run_eval.py
+
+# 2. Judge（评估回复质量，需在 .env 中配置 JUDGE_*）
+python eval/judge.py
+```
+
+### 配置 Judge
+
+在 `.env` 中添加（支持任意 OpenAI 兼容 API）：
+
+```env
+# Judge 评估模型（阿里百炼 / DeepSeek / OpenAI 均可）
+JUDGE_API_KEY=sk-xxx
+JUDGE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+JUDGE_MODEL=qwen-max
+```
+
+### 当前成绩
+
+| 指标 | 分数 |
+|------|------|
+| 测试集 | **25/25 (100%)** |
+| 工具准确性 | 4.84/5 |
+| 回复质量 | 4.88/5 |
+| 用户体验 | 4.64/5 |
+| **综合** | **4.79/5** |
+
+### 用例覆盖
+
+| 分类 | 用例数 | 说明 |
+|------|--------|------|
+| 快递查询 | 4 | 正常单号、无单号、不可识别单号 |
+| 备忘录 | 5 | 增删查列表、模糊意图、缺参数 |
+| 天气 | 3 | 正常城市、无城市、mock 外城市 |
+| 闲聊 | 3 | 自我介绍、讲笑话、多工具组合 |
+| 边界 | 10 | 中英混杂、缺参数、不存在资源、歧义输入 |
+
+### 评估策略
+
+- **测试集**：对比 LLM 的 `tool_calls` 与期望的工具调用，支持 `subset`（允许 LLM 多传可选参数）和 `any_of`（接受多种合理行为）
+- **LLM-as-Judge**：三个维度打分——工具准确性（工具选对没）、回复质量（有无幻觉）、用户体验（是否简洁自然）
+
+关键认知：**评估器模型能力决定 Judge 质量**。用 `deepseek-v4-flash` 打分乱跳（3.93/5），换 `qwen-max` 立刻合理（4.87/5）。
 
 ## 🔧 技术栈
 

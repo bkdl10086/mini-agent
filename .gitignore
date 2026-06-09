@@ -26,3 +26,6 @@ Thumbs.db
 
 # 运行时数据
 memo/*.json
+
+# eval 产出
+eval/results*.json

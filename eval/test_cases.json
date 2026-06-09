@@ -1,0 +1,243 @@
+[
+    {
+        "id": "e01",
+        "category": "快递查询",
+        "input": "帮我查一下快递ABB-566",
+        "expected_tools": [
+            {"name": "get_express", "arguments": {"ex_number": "ABB-566"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "e02",
+        "category": "快递查询",
+        "input": "SF12345678物流到哪了",
+        "expected_tools": [
+            {"name": "get_express", "arguments": {"ex_number": "SF12345678"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "e03",
+        "category": "快递查询",
+        "input": "7071234567890这个单号帮我查一下",
+        "expected_tools": [
+            {"name": "get_express", "arguments": {"ex_number": "7071234567890"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "e04",
+        "category": "快递查询",
+        "input": "帮我查快递",
+        "expected_tools": [],
+        "match_mode": "none",
+        "note": "没有给单号，不应调工具"
+    },
+    {
+        "id": "m01",
+        "category": "备忘录",
+        "input": "帮我记一下，明天下午三点开会",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "add"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "m02",
+        "category": "备忘录",
+        "input": "我有哪些备忘录",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "list"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "m03",
+        "category": "备忘录",
+        "input": "看看会议记录这篇备忘录",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "read", "name": "会议记录"}}
+        ],
+        "match_mode": "subset",
+        "any_of": [
+            [{"name": "memo", "arguments": {"operate": "read", "name": "会议记录"}}],
+            [{"name": "memo", "arguments": {"operate": "list"}}]
+        ],
+        "note": "read 和 list 都接受——LLM 可能先 list 确认备忘录是否存在"
+    },
+    {
+        "id": "m04",
+        "category": "备忘录",
+        "input": "把购物清单删了吧",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "delete", "name": "购物清单"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "m05",
+        "category": "备忘录",
+        "input": "帮我看看备忘录",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "list"}}
+        ],
+        "match_mode": "subset",
+        "note": "模糊意图应默认list"
+    },
+    {
+        "id": "w01",
+        "category": "天气",
+        "input": "喀什今天天气怎么样",
+        "expected_tools": [
+            {"name": "get_weather", "arguments": {"city": "喀什"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "w02",
+        "category": "天气",
+        "input": "北京多少度",
+        "expected_tools": [
+            {"name": "get_weather", "arguments": {"city": "北京"}}
+        ],
+        "match_mode": "subset"
+    },
+    {
+        "id": "w03",
+        "category": "天气",
+        "input": "明天天气怎么样",
+        "expected_tools": [],
+        "match_mode": "none",
+        "note": "没给城市名，不应瞎猜"
+    },
+    {
+        "id": "c01",
+        "category": "闲聊",
+        "input": "你好，你是谁",
+        "expected_tools": [],
+        "match_mode": "none"
+    },
+    {
+        "id": "c02",
+        "category": "闲聊",
+        "input": "讲个笑话",
+        "expected_tools": [],
+        "match_mode": "none"
+    },
+    {
+        "id": "c03",
+        "category": "闲聊",
+        "input": "深圳天气怎样，顺便帮我查个快递CGS-455",
+        "expected_tools": [
+            {"name": "get_weather", "arguments": {"city": "深圳"}},
+            {"name": "get_express", "arguments": {"ex_number": "CGS-455"}}
+        ],
+        "match_mode": "subset",
+        "note": "多工具同时调用"
+    },
+
+    {
+        "id": "b01",
+        "category": "边界",
+        "input": "帮我记个东西",
+        "expected_tools": [],
+        "match_mode": "none",
+        "note": "没给名称也没给内容，应反问而不是瞎调add"
+    },
+    {
+        "id": "b02",
+        "category": "边界",
+        "input": "删除一个叫xyz123的备忘录",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "delete", "name": "xyz123"}}
+        ],
+        "match_mode": "subset",
+        "note": "删除不存在的东西也要先调delete，让函数返回'不存在'"
+    },
+    {
+        "id": "b03",
+        "category": "边界",
+        "input": "帮我看看",
+        "expected_tools": [],
+        "match_mode": "none",
+        "note": "极度模糊，不应瞎猜调任何工具"
+    },
+    {
+        "id": "b04",
+        "category": "边界",
+        "input": "ABCDEFG这个快递到哪了",
+        "expected_tools": [
+            {"name": "get_express", "arguments": {"ex_number": "ABCDEFG"}}
+        ],
+        "match_mode": "subset",
+        "note": "奇怪的快递单号也要传进去，让函数判断返回'暂无数据'"
+    },
+    {
+        "id": "b05",
+        "category": "边界",
+        "input": "check express BBB-111 please",
+        "expected_tools": [
+            {"name": "get_express", "arguments": {"ex_number": "BBB-111"}}
+        ],
+        "match_mode": "subset",
+        "note": "中英混杂输入，应正确识别意图和单号"
+    },
+    {
+        "id": "b06",
+        "category": "边界",
+        "input": "看看不存在这篇备忘录里写了什么",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "read", "name": "不存在"}}
+        ],
+        "match_mode": "subset",
+        "any_of": [
+            [{"name": "memo", "arguments": {"operate": "read", "name": "不存在"}}],
+            [{"name": "memo", "arguments": {"operate": "list"}}]
+        ],
+        "note": "read/list都接受——LLM可能先list确认存在"
+    },
+    {
+        "id": "b07",
+        "category": "边界",
+        "input": "我有个快递怎么还没到",
+        "expected_tools": [],
+        "match_mode": "none",
+        "note": "没给单号，应反问而不是瞎传参数"
+    },
+    {
+        "id": "b08",
+        "category": "边界",
+        "input": "把会议记录处理一下",
+        "expected_tools": [],
+        "match_mode": "none",
+        "any_of": [
+            [{"name": "memo", "arguments": {"operate": "read", "name": "会议记录"}}]
+        ],
+        "note": "'处理'是模糊动词，不调或调read都合理"
+    },
+    {
+        "id": "b09",
+        "category": "边界",
+        "input": "新建一个备忘录叫重要",
+        "expected_tools": [
+            {"name": "memo", "arguments": {"operate": "add", "name": "重要"}}
+        ],
+        "match_mode": "subset",
+        "any_of": [
+            [{"name": "memo", "arguments": {"operate": "add", "name": "重要"}}],
+            []
+        ],
+        "note": "没给内容时调add（让函数报缺参数）或反问都合理"
+    },
+    {
+        "id": "b10",
+        "category": "边界",
+        "input": "阿克苏今天天气",
+        "expected_tools": [
+            {"name": "get_weather", "arguments": {"city": "阿克苏"}}
+        ],
+        "match_mode": "subset",
+        "note": "mock里没这个城市，函数会返回'暂无数据'"
+    }
+]
