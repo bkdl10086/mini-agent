@@ -1,267 +1,126 @@
 # 🤖 Mini Agent
 
-> 从零搭建的 ReAct 框架 AI Agent，支持工具调用和知识库检索增强生成（RAG）
+> 从零手搓的 ReAct AI Agent — CLI + Web 双入口，支持工具调用和 RAG 知识库检索
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-green.svg)](https://www.deepseek.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 📖 项目简介
+## 📖 简介
 
-Mini Agent 是一个从零搭建的 AI Agent 学习项目，按版本迭代演进：
+Mini Agent 从零搭建，按版本迭代演进：
 
-| 版本 | 文件 | 工具数 | 核心能力 |
-|------|------|--------|----------|
-| **v1** | `agent_v1.py` | 3 | 快递查询 + 备忘录管理 + 天气查询 |
-| **v2** | `agent_v2.py` | 3 | 知识库检索 + 快递查询 + 备忘录管理 |
+| 版本 | 文件 | 核心升级 |
+|------|------|----------|
+| **v0** | `Mini_Agent_early.py` | 最早的探索版本 |
+| **v1** | `agent_v1.py` | 快递查询 + 备忘录 → 3 工具 ReAct |
+| **v2** | `agent_v2.py` | 引入 RAG 知识库 → TF-IDF → Sentence-Transformers |
 
-v1 → v2 的升级链路：引入 search_knowledge_base 工具 → TF-IDF 替换为 Sentence-Transformers 语义向量 → jieba 分词替换为模型原生多语言。
+v2 之后进行工程化重构，拆分为模块化架构：
 
-## 🏗️ 架构设计
+| 模块 | 职责 |
+|------|------|
+| `main.py` | CLI 命令行入口 |
+| `api.py` | Web API 入口（FastAPI + SSE 流式） |
+| `core/` | 框架层：ToolRegistry + ReAct 引擎 + LLM 客户端 |
+| `tools.py` | 工具层：快递查询 / 备忘录 / RAG 知识库 |
+| `common.py` | 🔒 旧版 god module（保留作为手搓历史） |
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    ReAct 循环                         │
-│                                                      │
-│   用户输入                                             │
-│      ↓                                               │
-│   ┌──────────┐     tool_calls?     ┌──────────────┐  │
-│   │  LLM 推理 │ ────Yes──────────→ │  执行工具      │  │
-│   │(DeepSeek) │                    │              │  │
-│   └──────────┘                    │ get_express  │  │
-│        ↑                          │ memo         │  │
-│        │          No              │ search_kb 🔍 │  │
-│        │          ↓               └──────┬───────┘  │
-│        │     直接输出                     │          │
-│        │                                 ↓          │
-│   ┌────┴───────────────────────────←── 工具结果      │
-│   │  流式输出最终回答                                │
-│   └─────────────────────────────────                │
-└─────────────────────────────────────────────────────┘
-```
-
-### RAG 检索流程
+## 🏗️ 架构
 
 ```
-用户问题 → Sentence-Transformers 语义向量化 → 余弦相似度计算
-    → Top-K 文档块 → 拼入 Prompt → LLM 生成回答（Grounded）
+用户输入 → ReAct 引擎 (core/engine.py)
+              ↓
+         LLM 推理 → 需要工具？
+              ↓ Yes          ↓ No
+         ToolRegistry       直接输出
+         (tools.py)         (流式)
+              ↓
+         工具结果 → 回填 messages → LLM 总结
 ```
-
-## ✨ 核心特性
-
-- **ReAct 框架**：Reasoning（推理）→ Acting（工具调用）→ Observation（观察结果）循环
-- **Function Calling**：LLM 自主决定何时调用哪个工具、传什么参数
-- **流式输出**：第二轮对话使用 `stream=True`，打字机效果实时输出
-- **RAG 检索增强**：Sentence-Transformers 语义向量 + 余弦相似度，精准匹配语义而非关键词
-- **Chunking 分块**：200 字符/块，30 字符重叠，避免截断关键信息
-- **多轮对话**：完整维护 `messages` 列表，工具调用结果正确回传
-- **工具注册机制**：`ToolRegistry` 一行注册新工具，自动生成 OpenAI Schema、调度执行、上下文透传
-
-## 📁 项目结构
 
 ```
 mini-agent/
-├── README.md
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── common.py               # 共享模块：配置、LLM客户端工厂、快递鸟、备忘录、ReAct引擎
-├── agent_v1.py             # v1：快递 + 备忘录 + 天气（~100 行）
-├── agent_v2.py             # v2：RAG 知识库 + 快递 + 备忘录（~200 行）
-├── kb/                     # 知识库文档
-│   ├── ai_concepts.md
-│   ├── python_basics.md
-│   └── national_grid_exam.md
-├── memo/                   # 备忘录存储（运行时）
-└── eval/                   # 评估体系
-    ├── test_cases.json     # 25 条测试用例
-    ├── run_eval.py         # 测试集跑分（工具调用匹配）
-    └── judge.py            # LLM-as-Judge 质量评估
+├── main.py                # CLI 入口
+├── api.py                 # Web 入口
+├── core/
+│   ├── registry.py        # ToolRegistry 工具注册中心
+│   ├── engine.py          # ReAct 引擎（生成器，CLI/Web 共用）
+│   └── llm.py             # LLM 客户端工厂（多 provider 切换）
+├── tools.py               # 3 个工具 + 注册入口 + 知识库加载
+├── static/index.html      # Web 聊天界面（白底浅蓝）
+├── agent_v1.py            # 📦 v1 手搓版（保留）
+├── agent_v2.py            # 📦 v2 手搓版（保留）
+├── common.py              # 📦 旧 god module（保留）
+├── eval/                  # 评估体系（25 条用例 + LLM-as-Judge）
+├── kb/                    # 知识库文档（.md / .txt）
+├── memo/                  # 备忘录存储
+└── .env                   # API 配置
 ```
 
 ## 🚀 快速开始
 
-### 1. 环境要求
-
-- Python 3.10+
-- DeepSeek API Key（[获取地址](https://platform.deepseek.com/api_keys)）
-
-### 2. 安装依赖
-
 ```bash
+# 安装依赖
 pip install -r requirements.txt
+
+# 配置 .env（从 .env.example 复制，填入 API Key）
+
+# CLI 模式
+python main.py
+
+# Web 模式 → 浏览器打开 http://localhost:8000
+python api.py
 ```
 
-### 3. 配置 API Key
+## 💬 示例
 
-```bash
-cp .env.example .env
-# 编辑 .env，填入你的 DEEPSEEK_API_KEY
 ```
+🧑 你：帮我查 ABB-566 快递
+🔧 get_express {"ex_number": "ABB-566"} → 正在咸阳中转仓
+🤖 Agent：您的快递目前在咸阳中转仓，准备发出。
 
-### 4. 运行
-
-```bash
-# v1（快递 + 备忘录）
-python agent_v1.py
-
-# v2（知识库检索 + 快递 + 备忘录）
-python agent_v2.py
-```
-
-## 💬 交互示例
-
-### 基础版
-```
-🤖 Mini Agent 已启动（ReAct 模式）
-   工具：get_express | memo
-
-🧑 你：帮我查一下 ABB-566 快递到哪了
-
-🔧 调用工具: get_express({"ex_number": "ABB-566"})
-📋 工具返回: 正在咸阳中转仓，准备发出
-
-🤖 Agent：您的快递 ABB-566 目前在咸阳中转仓，正在准备发出。
-
-🧑 你：新增备忘录"学习计划"，内容是每天刷 30 道题
-
-🔧 调用工具: memo({"operate": "add", "name": "学习计划", "content": "每天刷 30 道题"})
-📋 工具返回: ✅ 备忘录 [学习计划] 已保存
-
-🤖 Agent：已为您创建备忘录「学习计划」，记录内容为"每天刷 30 道题"。
-```
-
-### RAG 版
-```
 🧑 你：Python 有哪些数据类型？
-
-🔧 调用: search_knowledge_base({"query": "Python 数据类型"})
-📋 返回: 【来源：python_basics.md，相关度：0.423】
-# Python 基础知识...
-
-🤖 Agent：Python 有 7 种基本数据类型：
-- str（字符串）：引号包裹的文本
-- int（整数）：如 42
-- float（浮点数）：如 3.14
-- list（列表）：有序可变 [1, 2, 3]
-- tuple（元组）：有序不可变 (1, 2, 3)
-- dict（字典）：键值对 {"name": "张三"}
-- set（集合）：无序去重 {1, 2, 3}
-——数据来源：kb/python_basics.md
+🔧 search_knowledge_base {"query": "Python 数据类型"}
+🤖 Agent：7 种基本类型：str、int、float、list、tuple、dict、set
+       ——来源：kb/python_basics.md
 ```
 
-## 🧪 评估体系
+## 🧪 评估
 
-双层 eval：**测试集做功能回归** + **LLM-as-Judge 做质量评估**。
-
-### 跑分
-
-```bash
-# 1. 测试集（验证工具调用是否正确）
-python eval/run_eval.py
-
-# 2. Judge（评估回复质量，需在 .env 中配置 JUDGE_*）
-python eval/judge.py
-```
-
-### 配置 Judge
-
-在 `.env` 中添加（支持任意 OpenAI 兼容 API）：
-
-```env
-# Judge 评估模型（阿里百炼 / DeepSeek / OpenAI 均可）
-JUDGE_API_KEY=sk-xxx
-JUDGE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-JUDGE_MODEL=qwen-max
-```
-
-### 当前成绩
+双层 eval：测试集回归 + LLM-as-Judge 质量评估。
 
 | 指标 | 分数 |
 |------|------|
-| 测试集 | **25/25 (100%)** |
+| 测试集 | 25/25 (100%) |
 | 工具准确性 | 4.84/5 |
 | 回复质量 | 4.88/5 |
-| 用户体验 | 4.64/5 |
-| **综合** | **4.79/5** |
+| 综合 | 4.79/5 |
 
-### 用例覆盖
-
-| 分类 | 用例数 | 说明 |
-|------|--------|------|
-| 快递查询 | 4 | 正常单号、无单号、不可识别单号 |
-| 备忘录 | 5 | 增删查列表、模糊意图、缺参数 |
-| 天气 | 3 | 正常城市、无城市、mock 外城市 |
-| 闲聊 | 3 | 自我介绍、讲笑话、多工具组合 |
-| 边界 | 10 | 中英混杂、缺参数、不存在资源、歧义输入 |
-
-### 评估策略
-
-- **测试集**：对比 LLM 的 `tool_calls` 与期望的工具调用，支持 `subset`（允许 LLM 多传可选参数）和 `any_of`（接受多种合理行为）
-- **LLM-as-Judge**：三个维度打分——工具准确性（工具选对没）、回复质量（有无幻觉）、用户体验（是否简洁自然）
-
-关键认知：**评估器模型能力决定 Judge 质量**。用 `deepseek-v4-flash` 打分乱跳（3.93/5），换 `qwen-max` 立刻合理（4.87/5）。
+```bash
+python eval/run_eval.py   # 功能回归
+python eval/judge.py      # 质量评估
+```
 
 ## 🔧 技术栈
 
 | 技术 | 用途 |
 |------|------|
-| **DeepSeek API** | 大语言模型推理（兼容 OpenAI SDK） |
-| **openai SDK** | API 调用客户端 |
-| **sentence-transformers** | 语义 Embedding（paraphrase-multilingual-MiniLM-L12-v2） |
-| **numpy** | 向量计算与相似度排序 |
-| **python-dotenv** | 环境变量管理 |
-| **快递鸟 API** | 真实物流轨迹查询（可选，未配置时降级为模拟数据） |
+| DeepSeek API | LLM 推理 |
+| FastAPI + uvicorn | Web 服务 + SSE 流式 |
+| sentence-transformers | 语义向量化 |
+| numpy | 余弦相似度排序 |
+| 快递鸟 API | 物流查询（可选） |
 
-## 📊 项目业绩
-
-### 项目收益
-- 实现了一个可运行的 AI Agent 系统，支持自然语言驱动的工具调用和知识库检索
-- 知识库检索从 TF-IDF 关键词匹配升级为 Sentence-Transformers 语义向量检索，检索准确率显著提升
-- 支持流式输出，用户体验接近 ChatGPT 的打字机效果
-- 模块化设计，新增工具只需在 `tools` 列表和 `execute_function` 中各加一段，扩展成本极低
-
-### 我的贡献
-- 从零独立完成全部代码，未使用任何 Agent 框架（LangChain/AutoGPT 等）
-- 独立实现 ReAct 循环：LLM 推理 → 工具调用 → 结果回传 → 流式总结
-- 独立实现 RAG 检索链路：文档分块 → 语义向量化 → 余弦相似度 → Top-K 召回
-- 完成项目文档、架构图、交互示例、部署说明
-
-### 我的收获
-- 深入理解了大模型 Function Calling 的底层机制（JSON Schema 定义 → tool_calls 解析 → 结果回填）
-- 掌握了 RAG 的完整技术链路（Embedding / Chunking / Vector Search / Grounding）
-- 积累了从零搭建项目的经验：结构设计 → 编码实现 → 重构优化 → 文档输出
-
----
-
-## 📚 学到的核心概念
+## 📚 核心概念
 
 | 概念 | 说明 |
 |------|------|
-| **ReAct** | Reasoning + Acting 循环，Agent 的核心运行框架 |
-| **Function Calling** | LLM 输出结构化 JSON 告诉程序"我要调哪个函数" |
-| **RAG** | 先检索再生成，让 LLM 的回答基于实际资料（Grounding） |
-| **Embedding** | 把文本变成数值向量，相似文本向量距离近 |
-| **Chunking** | 长文档切成小块，控制每块大小和重叠量 |
-| **Vector Search** | 计算余弦相似度找最相关的 Top-K 文档块 |
-| **Context Window** | 一次能塞给 LLM 的文本上限，RAG 能突破这个限制 |
-| **Round-trip** | 用户输入 → LLM决策 → 工具执行 → LLM总结，完整一轮 |
-
-## 🗺️ 学习路线
-
-```
-Python 基础 → HTTP/API 调用 → openai SDK → 流式输出
-    → 多轮对话 → Function Calling → ReAct Agent
-    → 代码重构 → RAG（TF-IDF + jieba）→ 本项目
-```
-
-## 🔜 后续计划
-
-- [ ] 接入更多工具（天气、新闻、日历）
-- [ ] 部署本地开源模型（Ollama + Qwen）
-- [ ] FastAPI Web 界面
-- [ ] 知识库增量更新（新增文档自动索引）
+| ReAct | Reasoning + Acting 循环 |
+| Function Calling | LLM 输出 JSON 决定调哪个工具 |
+| RAG | 先检索再生成，对抗幻觉 |
+| Embedding | 文本 → 向量，语义相近的向量接近 |
+| ToolRegistry | 注册 → 生成 Schema → 自动 dispatch |
 
 ## 📄 License
 
-MIT License
+MIT
