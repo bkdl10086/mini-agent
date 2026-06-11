@@ -1,6 +1,6 @@
 # 🤖 Mini Agent
 
-> 从零手搓的 ReAct AI Agent — CLI + Web 双入口，工具调用 + RAG 知识库检索
+> AI 辅助开发的 ReAct Agent — CLI + Web 双入口，工具调用 + RAG 知识库检索
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-green.svg)](https://www.deepseek.com/)
@@ -13,7 +13,7 @@
 - **3 个工具**：快递查询 | 备忘录管理 | RAG 知识库检索
 - **2 个入口**：`python main.py`（终端）/ `python api.py`（浏览器）
 - **1 个引擎**：`core/engine.py` — CLI 和 Web 共享同一套 ReAct 逻辑
-- **0 个框架**：未使用 LangChain / AutoGPT，全部手搓
+- **0 个框架**：未使用 LangChain / AutoGPT，理解底层原理
 
 ## 🏗️ 架构
 
